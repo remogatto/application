@@ -13,7 +13,7 @@ type testSuite struct {
 
 type OddLoop struct {
 	pause, terminate chan int
-	running bool
+	running          bool
 }
 
 func (loop *OddLoop) Pause() chan int {
@@ -35,14 +35,14 @@ func (loop *OddLoop) Run() {
 			loop.running = false
 			loop.terminate <- 0
 			break
-			
+
 		}
 	}
 }
 
 type EvenLoop struct {
 	pause, terminate chan int
-	running bool
+	running          bool
 }
 
 func (loop *EvenLoop) Pause() chan int {
@@ -64,35 +64,35 @@ func (loop *EvenLoop) Run() {
 			loop.running = false
 			loop.terminate <- 0
 			break
-			
+
 		}
-			
+
+	}
+}
+
+var (
+	oddLoop  *OddLoop
+	evenLoop *EvenLoop
+)
+
+func (t *testSuite) Before() {
+	oddLoop = &OddLoop{
+		pause:     make(chan int),
+		terminate: make(chan int),
+	}
+	evenLoop = &EvenLoop{
+		pause:     make(chan int),
+		terminate: make(chan int),
 	}
 }
 
 func (t *testSuite) Should_register_new_loops() {
-	oddLoop := &OddLoop{
-	pause: make(chan int), 
-	terminate: make(chan int), 
-	}
-	evenLoop := &EvenLoop{
-	pause: make(chan int), 
-	terminate: make(chan int), 
-	}
 	Register("Odd Counter", oddLoop)
 	Register("Even Counter", evenLoop)
 	t.Equal(2, NumLoops)
 }
 
 func (t *testSuite) Should_wait_until_all_loops_are_terminated() {
-	oddLoop := &OddLoop{
-	pause: make(chan int), 
-	terminate: make(chan int), 
-	}
-	evenLoop := &EvenLoop{
-	pause: make(chan int), 
-	terminate: make(chan int), 
-	}
 	Register("Odd Counter", oddLoop)
 	Register("Even Counter", evenLoop)
 	exitCh := make(chan bool)
@@ -110,4 +110,3 @@ func TestApplication(t *testing.T) {
 		new(testSuite),
 	)
 }
-
