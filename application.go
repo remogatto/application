@@ -35,6 +35,10 @@ var (
 	// console output.
 	Verbose bool
 
+	// Verbose is a boolean flag. If true it enables a lot of
+	// debugging output.
+	Debug bool
+
 	loops      map[string]Looper
 	terminated chan bool
 	closing    bool
@@ -104,6 +108,14 @@ func Run(exitCh chan bool) {
 // Logf produces output only if Verbose variable is true.
 func Logf(fmt string, v ...interface{}) {
 	if Verbose {
+		log.Printf(fmt, v...)
+	}
+}
+
+// Debugf is an helper function that produces formatted log.
+// Debugf produces output only if Debug variable is true.
+func Debugf(fmt string, v ...interface{}) {
+	if Debug {
 		log.Printf(fmt, v...)
 	}
 }
