@@ -104,6 +104,11 @@ func Run(exitCh chan bool) {
 	close(exitCh)
 }
 
+// Printf is an helper function that produces formatted log.
+func Printf(fmt string, v ...interface{}) {
+	log.Printf(fmt, v...)
+}
+
 // Logf is an helper function that produces formatted log.
 // Logf produces output only if Verbose variable is true.
 func Logf(fmt string, v ...interface{}) {
@@ -118,6 +123,13 @@ func Debugf(fmt string, v ...interface{}) {
 	if Debug {
 		log.Printf(fmt, v...)
 	}
+}
+
+// Fatal is an helper function that produces a message on a fatal
+// error. Then it exits from the application.
+func Fatal(message string) {
+	Logf("%s\n", message)
+	Exit()
 }
 
 func init() {
