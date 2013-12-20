@@ -1,6 +1,6 @@
 # What's that?
 
-<pre>application</pre> is a Go package that implements an application
+<tt>application</tt> is a Go package that implements an application
 infrastructure.
 
 An application is seen as a set of loops, each running on a separate
