@@ -6,8 +6,8 @@ package application
 
 import (
 	"os"
-	"sync"
 	"os/signal"
+	"sync"
 )
 
 type SignalHandler interface {

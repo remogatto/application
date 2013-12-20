@@ -1,112 +1,183 @@
 package application
 
 import (
+	"errors"
+	"fmt"
 	pt "github.com/remogatto/prettytest"
 	"testing"
 )
 
-const COUNT = 3
-
-type testSuite struct {
+type basicTestSuite struct {
 	pt.Suite
 }
 
-type OddLoop struct {
-	pause, terminate chan int
-	running          bool
+type errorTestSuite struct {
+	pt.Suite
 }
 
-func (loop *OddLoop) Pause() chan int {
-	return loop.pause
+type CountLoop struct {
+	*BaseLoop
+	initialized     chan int
+	running         bool
+	count           int
+	countCh, nextCh chan int
 }
 
-func (loop *OddLoop) Terminate() chan int {
-	return loop.terminate
+func (loop *CountLoop) Initialized() chan int {
+	return loop.initialized
 }
 
-func (loop *OddLoop) Run() {
+func (loop *CountLoop) Run() {
 	loop.running = true
 	for loop.running {
 		select {
-		case <-loop.pause:
-			loop.pause <- 0
-			break
-		case <-loop.terminate:
+		case loop.initialized <- 1:
+		case <-loop.PauseCh:
+			loop.PauseCh <- 0
+		case <-loop.TerminateCh:
 			loop.running = false
-			loop.terminate <- 0
-			break
-
+			loop.TerminateCh <- 0
+		case <-loop.nextCh:
+			loop.count += 2
+		case <-loop.countCh:
+			loop.countCh <- loop.count
 		}
 	}
 }
 
-type EvenLoop struct {
-	pause, terminate chan int
-	running          bool
+type PanicLoop struct {
+	*BaseLoop
+	initialized      chan int
+	raiseStringError chan int
+	raiseError       chan int
 }
 
-func (loop *EvenLoop) Pause() chan int {
-	return loop.pause
+func (loop *PanicLoop) Initialized() chan int {
+	return loop.initialized
 }
 
-func (loop *EvenLoop) Terminate() chan int {
-	return loop.terminate
-}
-
-func (loop *EvenLoop) Run() {
-	loop.running = true
-	for loop.running {
+func (loop *PanicLoop) Run() {
+	for {
 		select {
-		case <-loop.pause:
-			loop.pause <- 0
-			break
-		case <-loop.terminate:
-			loop.running = false
-			loop.terminate <- 0
-			break
+		case loop.initialized <- 1:
 
+		case <-loop.raiseStringError:
+			panic("That's an error!")
+		case <-loop.raiseError:
+			panic(errors.New("That's an error!"))
 		}
-
 	}
 }
 
 var (
-	oddLoop  *OddLoop
-	evenLoop *EvenLoop
+	oddLoop, evenLoop *CountLoop
+	panicLoop         *PanicLoop
 )
 
-func (t *testSuite) Before() {
-	oddLoop = &OddLoop{
-		pause:     make(chan int),
-		terminate: make(chan int),
+func (t *basicTestSuite) BeforeAll() {
+	oddLoop = &CountLoop{
+		BaseLoop:    NewBaseLoop(),
+		initialized: make(chan int),
+		nextCh:      make(chan int),
+		countCh:     make(chan int),
+		count:       0,
 	}
-	evenLoop = &EvenLoop{
-		pause:     make(chan int),
-		terminate: make(chan int),
+	evenLoop = &CountLoop{
+		BaseLoop:    NewBaseLoop(),
+		initialized: make(chan int),
+		nextCh:      make(chan int),
+		countCh:     make(chan int),
+		count:       1,
 	}
+	Register("oddLoop", oddLoop)
+	Register("evenLoop", evenLoop)
+
+	go Run()
 }
 
-func (t *testSuite) Should_register_new_loops() {
-	Register("Odd Counter", oddLoop)
-	Register("Even Counter", evenLoop)
+func (t *basicTestSuite) AfterAll() {
+	SendExit()
+}
+
+func (t *basicTestSuite) TestNumLoops() {
 	t.Equal(2, NumLoops)
 }
 
-func (t *testSuite) Should_wait_until_all_loops_are_terminated() {
-	Register("Odd Counter", oddLoop)
-	Register("Even Counter", evenLoop)
-	exitCh := make(chan bool)
-	go Run(exitCh)
-	Exit()
-	<-exitCh
-	t.False(oddLoop.running)
-	t.False(evenLoop.running)
+func (t *basicTestSuite) TestInitialized() {
+	t.Equal(1, <-evenLoop.Initialized())
+	t.Equal(1, <-oddLoop.Initialized())
+}
+
+func (t *basicTestSuite) TestRun() {
+	oddLoop.nextCh <- 1
+	oddLoop.nextCh <- 1
+	oddLoop.countCh <- 1
+	oddCount := <-oddLoop.countCh
+
+	evenLoop.nextCh <- 1
+	evenLoop.nextCh <- 1
+	evenLoop.countCh <- 1
+
+	evenCount := <-evenLoop.countCh
+
+	t.Equal(4, oddCount)
+	t.Equal(5, evenCount)
+}
+
+func (t *basicTestSuite) TestRegisterTwice() {
+	err := Register("oddLoop", oddLoop)
+	t.True(err != nil)
+}
+
+func (t *basicTestSuite) TestRunMoreThanOnce() {
+	go Run()
+	err, ok := (<-Errors).(RerunError)
+	t.True(ok)
+	t.True(err.ApplicationError.Stack != "")
+}
+
+func (t *errorTestSuite) TestRuntimeErrorAndRestart() {
+	panicLoop = &PanicLoop{
+		BaseLoop:         NewBaseLoop(),
+		initialized:      make(chan int),
+		raiseStringError: make(chan int),
+		raiseError:       make(chan int),
+	}
+
+	// cheating with global variables
+	running = false
+	terminated = make(chan bool)
+
+	Register("panicLoop", panicLoop)
+	go Run()
+
+	count := 0
+	for count < 2 {
+		select {
+		case <-panicLoop.initialized:
+			// raise errors
+			if count == 0 {
+				panicLoop.raiseStringError <- 1
+			} else {
+				panicLoop.raiseError <- 1
+			}
+		case x := <-Errors:
+			t.Equal("That's an error!", x.(Error).Error())
+			if count == 0 {
+				// test start errors
+				err := Start("panicLoo")
+				t.True(err != nil, fmt.Sprintf("Error message %s", err))
+
+				err = Start("panicLoop")
+				t.True(err == nil)
+			}
+			count++
+
+		}
+	}
+	SendExit()
 }
 
 func TestApplication(t *testing.T) {
-	pt.RunWithFormatter(
-		t,
-		&pt.BDDFormatter{"application"},
-		new(testSuite),
-	)
+	pt.Run(t, new(basicTestSuite), new(errorTestSuite))
 }
