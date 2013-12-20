@@ -39,7 +39,7 @@ func (loop *mainLoop) Run() {
 			// Receive a tick from the ticker.
 		case <-loop.ticker.C:
 			// Initiate the exit procedure.
-			application.SendExit()
+			application.Exit()
 
 			// Receive a duration string and create a proper
 			// ticker from it.
@@ -92,13 +92,13 @@ func main() {
 				mainLoop.durationCh <- "2 seconds"
 				sendWrong = false
 			}
-		case <-application.Exit:
+		case <-application.ExitCh:
 			// Catch the exit signal and print a last
 			// message.
 			application.Logf("Very last message before exiting.")
 			// Exit from the control loop.
 			return
-		case err := <-application.Errors:
+		case err := <-application.ErrorCh:
 			application.Printf("An error was received: \"%v\"\n", err)
 
 			// Restart the loop.
