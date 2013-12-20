@@ -96,7 +96,7 @@ func (t *basicTestSuite) BeforeAll() {
 }
 
 func (t *basicTestSuite) AfterAll() {
-	SendExit()
+	Exit()
 }
 
 func (t *basicTestSuite) TestNumLoops() {
@@ -131,7 +131,7 @@ func (t *basicTestSuite) TestRegisterTwice() {
 
 func (t *basicTestSuite) TestRunMoreThanOnce() {
 	go Run()
-	err, ok := (<-Errors).(RerunError)
+	err, ok := (<-ErrorCh).(RerunError)
 	t.True(ok)
 	t.True(err.ApplicationError.Stack != "")
 }
@@ -161,7 +161,7 @@ func (t *errorTestSuite) TestRuntimeErrorAndRestart() {
 			} else {
 				panicLoop.raiseError <- 1
 			}
-		case x := <-Errors:
+		case x := <-ErrorCh:
 			t.Equal("That's an error!", x.(Error).Error())
 			if count == 0 {
 				// test start errors
@@ -175,7 +175,7 @@ func (t *errorTestSuite) TestRuntimeErrorAndRestart() {
 
 		}
 	}
-	SendExit()
+	Exit()
 }
 
 func TestApplication(t *testing.T) {

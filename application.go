@@ -84,12 +84,12 @@ var (
 	// debugging output.
 	Debug bool
 
-	// Errors is a receive-only channel from which client code
+	// ErrorCh is a receive-only channel from which client code
 	// receive errors from application.
-	Errors <-chan interface{}
+	ErrorCh <-chan interface{}
 
 	// Exit receive a boolean value when the application exits.
-	Exit <-chan bool
+	ExitCh <-chan bool
 
 	loops      map[string]Looper
 	terminated chan bool
@@ -128,7 +128,7 @@ func Loop(name string) (Looper, error) {
 }
 
 // SendExit initiates the termination process.
-func SendExit() {
+func Exit() {
 	if !closing {
 		closing = true
 		close(terminated)
@@ -254,7 +254,7 @@ func init() {
 	terminated = make(chan bool)
 	exitCh = make(chan bool)
 	errorCh = make(chan interface{})
-	Errors = errorCh
-	Exit = exitCh
+	ErrorCh = errorCh
+	ExitCh = exitCh
 	loops = make(map[string]Looper, 0)
 }
