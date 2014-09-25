@@ -11,6 +11,7 @@ import (
 	"log"
 	"runtime"
 	"sync"
+    "os"
 )
 
 type Error struct {
@@ -233,6 +234,12 @@ func Debugf(fmt string, v ...interface{}) {
 	if Debug {
 		log.Printf(fmt, v...)
 	}
+}
+
+// Fatal is a helper function that logs the error and exits the app when called
+func Fatal(v ...interface{}) {
+    log.Fatalf("v: %v\n", v)
+    os.Exit(1)
 }
 
 func stacktrace() string {
